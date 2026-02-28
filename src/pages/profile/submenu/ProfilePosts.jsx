@@ -1,33 +1,93 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useAppDispatch, useAppSelector } from "@/hooks/useRedux";
-import { fetchTimeline, selectTimeline } from "@/app/store/postSlice";
 import { selectUser } from "@/app/store/authSlice";
-import PostCard from "./PostCard"; // নতুন সাব-কম্পোনেন্ট
+import { fetchGlobalFeed, selectFeed, selectFeedLoading } from "@/app/store/postSlice";
+import PostCard from "../../../modules/social/posts/PostCard";
+import postService from "@/services/post.service";
 
+/**
+ * ProfilePosts
+ *
+ * আগের সমস্যা: local useState দিয়ে posts রাখা হচ্ছিল।
+ * Socket event Redux-এ যাচ্ছিল কিন্তু local state আপডেট হচ্ছিল না।
+ *
+ * এখন:
+ * - Initial load: API থেকে নিজের posts আনা হয় এবং Redux-এ merge হয়
+ * - Display: Redux selectFeed থেকে নিজের posts filter করে দেখানো হয়
+ * - Socket event Redux আপডেট করলে এই component automatically re-render হয়
+ */
 export default function ProfilePosts() {
   const dispatch = useAppDispatch();
-  const posts = useAppSelector(selectTimeline);
-  const user = useAppSelector(selectUser);
+  const user     = useAppSelector(selectUser);
 
+  // Redux থেকে সব posts নিয়ে নিজের posts filter করা
+  // Socket event এলে Redux আপডেট হবে → এই component re-render হবে
+  const allPosts = useAppSelector(selectFeed);
+  const myPosts  = allPosts.filter(
+    (p) => p.author?._id?.toString() === user?._id?.toString()
+  );
+
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [page,           setPage]           = useState(1);
+  const [hasMore,        setHasMore]        = useState(true);
+  const [loadingMore,    setLoadingMore]    = useState(false);
+
+  // Initial load — API থেকে নিজের posts আনো
+  // fetchGlobalFeed এ merge হবে, তারপর filter করে দেখাবে
   useEffect(() => {
-    // শুধুমাত্র প্রোফাইল পোস্টের জন্য আলাদা API থাকলে ভালো, 
-    // নয়তো টাইমলাইন থেকে ফিল্টার করাও চলে।
-    dispatch(fetchTimeline());
-  }, [dispatch]);
+    if (!user?._id) return;
 
-  // Performance Optimization: অপ্রয়োজনীয় রেন্ডার রুখতে useMemo ব্যবহার
-  const myPosts = useMemo(() => {
-    return posts.filter((p) => p.author?._id === user?._id);
-  }, [posts, user?._id]);
+    setInitialLoading(true);
+    postService
+      .userPosts(user._id, 1)
+      .then((res) => {
+        const fetched = res.data.posts || [];
+        setHasMore(res.data.pagination?.page < res.data.pagination?.pages);
+        setPage(1);
 
-  if (!user) return <ProfileSkeleton />;
+        // Redux-এ dispatch করি যাতে socket events কাজ করে
+        // fetchGlobalFeed না করে directly dispatch করা হচ্ছে
+        // postSlice এর fetchGlobalFeed.fulfilled এ merge হবে
+        dispatch({
+          type: 'posts/fetchGlobalFeed/fulfilled',
+          payload: { posts: fetched, page: 1, totalPages: res.data.pagination?.pages || 1 },
+        });
+      })
+      .catch(console.error)
+      .finally(() => setInitialLoading(false));
+  }, [user?._id, dispatch]);
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore || !hasMore || !user?._id) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = page + 1;
+      const res      = await postService.userPosts(user._id, nextPage);
+      const fetched  = res.data.posts || [];
+
+      // Redux-এ merge করো
+      dispatch({
+        type: 'posts/fetchGlobalFeed/fulfilled',
+        payload: { posts: fetched, page: nextPage, totalPages: res.data.pagination?.pages || 1 },
+      });
+
+      setPage(nextPage);
+      setHasMore(nextPage < (res.data.pagination?.pages || 1));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, hasMore, page, user?._id, dispatch]);
+
+  if (initialLoading) return <ProfileSkeleton />;
 
   if (myPosts.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-xl px-md bg-card rounded-card border border-dashed border-text-light/30">
         <div className="text-4xl mb-sm">📝</div>
         <p className="text-h3 text-text-secondary font-heading">আপনার কোনো পোস্ট নেই</p>
-        <p className="text-small text-text-light">নতুন কিছু শেয়ার করুন আপনার বন্ধুদের সাথে!</p>
+        <p className="text-small text-text-light">নতুন কিছু শেয়ার করুন আপনার বন্ধুদের সাথে!</p>
       </div>
     );
   }
@@ -40,20 +100,31 @@ export default function ProfilePosts() {
           {myPosts.length} টি পোস্ট
         </span>
       </div>
-      
+
       <div className="space-y-lg">
         {myPosts.map((post) => (
-          <PostCard key={post._id} post={post} currentUser={user} />
+          <PostCard key={post._id} post={post} />
         ))}
       </div>
+
+      {hasMore && (
+        <div className="flex justify-center pt-sm">
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="text-small font-bold text-primary hover:bg-primary/5 px-md py-sm rounded-full transition-all flex items-center gap-xs disabled:opacity-50"
+          >
+            {loadingMore ? "লোড হচ্ছে..." : "আরো পোস্ট দেখুন"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-// সিম্পল লোডিং স্কেলিটন
 function ProfileSkeleton() {
   return (
-    <div className="space-y-md  animate-pulse p-md">
+    <div className="space-y-md animate-pulse p-md">
       {[1, 2].map((i) => (
         <div key={i} className="h-64 bg-gray-100 rounded-card w-full" />
       ))}

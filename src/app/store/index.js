@@ -8,6 +8,7 @@ import postReducer     from './postSlice'
 // import friendReducer from './friendSlice';
 import friendReducer from "../../modules/friends/friendSlice";
 import userProfileReducer from '@/modules/userProfile/userProfileSlice';
+import notificationReducer from './notificationSlice'
 /**
  * Redux Store
  * সব slice এখানে register করা আছে
@@ -22,6 +23,7 @@ const store = configureStore({
     posts:     postReducer,
     friends: friendReducer,
     userProfile: userProfileReducer,
+    notifications: notificationReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

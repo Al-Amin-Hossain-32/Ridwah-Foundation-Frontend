@@ -1,37 +1,43 @@
-import { useEffect } from 'react'
-import { Link } from 'react-router-dom'
-import { ArrowRight, Trophy, BookOpen, Heart, RefreshCw } from 'lucide-react'
-import { useAppDispatch, useAppSelector } from '@/hooks/useRedux'
-import { fetchCampaigns, selectCampaigns, selectCampaignLoad } from '@/app/store/campaignSlice'
-import { fetchLeaderboard, selectLeaderboard }                  from '@/app/store/donationSlice'
-import { fetchTimeline, selectTimeline, selectPostLoading }     from '@/app/store/postSlice'
-import { selectUser }                                           from '@/app/store/authSlice'
-import { Button }      from '@/components/ui/Button'
-import { Card }        from '@/components/ui/Card'
-import { CardSkeleton } from '@/components/ui/Loader'
-import { Avatar }      from '@/components/ui/Avatar'
-import { EmptyState }  from '@/components/ui/EmptyState'
-import { CampaignCard } from '@/modules/donations/CampaignCard'
-import { PostCard }     from '@/modules/social/PostCard'
-import { formatCurrency } from '@/utils/formatters'
+import { useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { ArrowRight, Trophy, BookOpen, Heart } from 'lucide-react';
+import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
+import { fetchCampaigns, selectCampaigns, selectCampaignLoad } from '@/app/store/campaignSlice';
+import { fetchLeaderboard, selectLeaderboard }                  from '@/app/store/donationSlice';
+import { fetchGlobalFeed, selectTimeline, selectPostLoading }   from '@/app/store/postSlice';
+import { selectUser }                                           from '@/app/store/authSlice';
+import { Button }       from '@/components/ui/Button';
+import { Card }         from '@/components/ui/Card';
+import { CardSkeleton } from '@/components/ui/Loader';
+import { Avatar }       from '@/components/ui/Avatar';
+import { EmptyState }   from '@/components/ui/EmptyState';
+import { CampaignCard } from '@/modules/donations/CampaignCard';
+import PostCard         from '@/modules/social/posts/PostCard';
+import { formatCurrency } from '@/utils/formatters';
 
+/**
+ * HomePage
+ *
+ * পরিবর্তন:
+ * 1. fetchTimeline → fetchGlobalFeed (homepage-এ সবার পোস্ট দেখানো বেশি মানানসই)
+ * 2. PostCard import আপডেট (named → default, নতুন path)
+ * 3. currentUser prop সরানো — PostCard নিজেই selectUser করে
+ */
 export default function HomePage() {
-  const dispatch = useAppDispatch()
+  const dispatch = useAppDispatch();
 
-  // Redux state
-  const user        = useAppSelector(selectUser)
-  const campaigns   = useAppSelector(selectCampaigns)
-  const leaderboard = useAppSelector(selectLeaderboard)
-  const posts       = useAppSelector(selectTimeline)
-  const campLoad    = useAppSelector(selectCampaignLoad)
-  const postLoad    = useAppSelector(selectPostLoading)
+  const user        = useAppSelector(selectUser);
+  const campaigns   = useAppSelector(selectCampaigns);
+  const leaderboard = useAppSelector(selectLeaderboard);
+  const posts       = useAppSelector(selectTimeline);
+  const campLoad    = useAppSelector(selectCampaignLoad);
+  const postLoad    = useAppSelector(selectPostLoading);
 
-  // Fetch on mount
   useEffect(() => {
-    dispatch(fetchCampaigns({ limit: 3, isActive: true }))
-    dispatch(fetchLeaderboard())
-    dispatch(fetchTimeline())
-  }, [dispatch])
+    dispatch(fetchCampaigns({ limit: 3, isActive: true }));
+    dispatch(fetchLeaderboard());
+    dispatch(fetchGlobalFeed({ page: 1 }));
+  }, [dispatch]);
 
   return (
     <div className="page-wrapper space-y-lg">
@@ -49,7 +55,6 @@ export default function HomePage() {
         className="rounded-[18px] p-lg text-white relative overflow-hidden"
         style={{ background: 'linear-gradient(135deg, #0F766E 0%, #0D9488 100%)' }}
       >
-        {/* Background pattern */}
         <div className="absolute -right-6 -top-6 w-32 h-32 bg-white/5 rounded-full" />
         <div className="absolute -right-2 -bottom-8 w-24 h-24 bg-white/5 rounded-full" />
 
@@ -62,8 +67,7 @@ export default function HomePage() {
           <div className="flex items-center gap-sm mt-md">
             <Link to="/app/donate">
               <Button variant="donate" size="sm">
-                <Heart size={15} />
-                Donate করুন
+                <Heart size={15} /> Donate করুন
               </Button>
             </Link>
             <Link
@@ -89,7 +93,9 @@ export default function HomePage() {
         </div>
 
         {campLoad ? (
-          <CardSkeleton count={2} />
+          <div className="space-y-3">
+            {[1, 2].map((i) => <CardSkeleton key={i} />)}
+          </div>
         ) : campaigns.length > 0 ? (
           <div className="space-y-3">
             {campaigns.slice(0, 3).map((c) => (
@@ -113,7 +119,6 @@ export default function HomePage() {
             <div className="space-y-3">
               {leaderboard.slice(0, 5).map((donor, i) => (
                 <div key={i} className="flex items-center gap-sm">
-                  {/* Rank badge */}
                   <div
                     className={`
                       w-7 h-7 rounded-full flex items-center justify-center
@@ -169,14 +174,18 @@ export default function HomePage() {
         </div>
 
         {postLoad ? (
-          <CardSkeleton count={2} />
+          <div className="space-y-3">
+            {[1, 2].map((i) => <CardSkeleton key={i} />)}
+          </div>
         ) : posts.length > 0 ? (
-          posts.slice(0, 3).map((p) => <PostCard key={p._id} post={p} />)
+          posts.slice(0, 3).map((p) => (
+            <PostCard key={p._id} post={p} />
+          ))
         ) : (
           <EmptyState icon="✍️" title="কোনো post নেই" />
         )}
       </section>
 
     </div>
-  )
+  );
 }

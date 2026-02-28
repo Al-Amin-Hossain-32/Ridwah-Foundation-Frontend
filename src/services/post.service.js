@@ -1,21 +1,21 @@
-import api from './api'
+import api from './api';
 
 const postService = {
-  // ১. নিউজফিড (সব ইউজারের পোস্ট - নতুন যোগ করা হয়েছে)
-  feed:          (page = 1)      => api.get(`/posts/feed?page=${page}&limit=10`),
-
-  // ২. টাইমলাইন (বন্ধু + নিজের পোস্ট)
-  timeline:      (page = 1)      => api.get(`/posts/timeline?page=${page}`),
-  
+  feed:          (page = 1)         => api.get(`/posts/feed?page=${page}&limit=10`),
+  timeline:      (page = 1)         => api.get(`/posts/timeline?page=${page}`),
   userPosts:     (userId, page = 1) => api.get(`/posts/user/${userId}?page=${page}`),
-  create:        (data)          => api.post('/posts', data),
-  getById:       (id)            => api.get(`/posts/${id}`),
-  update:        (id, data)      => api.put(`/posts/${id}`, data),
-  remove:        (id)            => api.delete(`/posts/${id}`),
-  like:          (id)            => api.post(`/posts/${id}/like`),
-  comment:       (id, data)      => api.post(`/posts/${id}/comment`, data),
-  deleteComment: (postId, commentId) =>
-    api.delete(`/posts/${postId}/comment/${commentId}`),
-}
+  create:        (data)             => api.post('/posts', data),
+  getById:       (id)               => api.get(`/posts/${id}`),
+  update:        (id, data)         => api.put(`/posts/${id}`, data),
+  remove:        (id)               => api.delete(`/posts/${id}`),
 
-export default postService
+  // Comments
+  comment:       (id, data)         => api.post(`/posts/${id}/comment`, data),
+  deleteComment: (postId, cId)      => api.delete(`/posts/${postId}/comment/${cId}`),
+
+  // NEW: Replies
+  addReply:    (postId, commentId, data)          => api.post(`/posts/${postId}/comment/${commentId}/reply`, data),
+  deleteReply: (postId, commentId, replyId)       => api.delete(`/posts/${postId}/comment/${commentId}/reply/${replyId}`),
+};
+
+export default postService;

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { io } from 'socket.io-client';
 import { useAppSelector, useAppDispatch } from './useRedux';
-import { selectAuth } from '@/app/store/authSlice';
+import { selectAuth, selectUser } from '@/app/store/authSlice';
 import {
   receiveMessage,
   fetchUnreadCount,
@@ -11,14 +11,31 @@ import {
   addOnlineUser,
   removeOnlineUser,
 } from '@/app/store/chatSlice';
-import { updateLikeRealtime } from '@/app/store/postSlice';
+import {
+  socketNewPost,
+  socketPostDeleted,
+  socketReactionUpdate,
+  socketNewComment,
+  socketCommentDeleted,
+  socketNewReply,
+  socketReplyDeleted,
+} from '@/app/store/postSlice';
+import { socketNewNotification } from '@/app/store/notificationSlice';
 
 let socketInstance = null;
 
 export function useSocket() {
   const dispatch = useAppDispatch();
   const { token, isLoggedIn } = useAppSelector(selectAuth);
+  const currentUser = useAppSelector(selectUser);
   const socketRef = useRef(null);
+
+  // currentUser কে ref-এ রাখি — dependency array-এ না রেখেও
+  // handler-এর ভেতরে সবসময় latest value পাওয়া যাবে
+  const currentUserRef = useRef(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
 
   useEffect(() => {
     if (!isLoggedIn || !token) {
@@ -48,59 +65,68 @@ export function useSocket() {
     socketRef.current = socketInstance;
     const socket = socketInstance;
 
-    const handleConnect = () => console.log('⚡ [Socket] Connected:', socket.id);
+    // প্রতিবার effect চলার আগে সব listener সরাও — duplicate এর কোনো সুযোগ নেই
+    socket.removeAllListeners();
 
-    // Online presence — server sends full list on connect
-    const handleOnlineUsers = (userIds) => {
-      dispatch(setOnlineUsers(userIds));
-    };
-    const handleUserOnline = ({ userId }) => {
-      dispatch(addOnlineUser(userId));
-    };
-    const handleUserOffline = ({ userId }) => {
-      dispatch(removeOnlineUser(userId));
-    };
-
-    const handleNewMessage = (message) => {
-      dispatch(receiveMessage(message));
-      dispatch(fetchUnreadCount());
-    };
-    const handleMessageEdited  = (data) => dispatch(editMessageRealtime(data));
-    const handleMessageDeleted = (data) => dispatch(deleteMessageRealtime(data));
-    const handlePostLiked = (data) =>
-      dispatch(updateLikeRealtime({ postId: data.postId, userId: data.userId, actionType: data.action }));
-
-    const handleDisconnect = (reason) => {
+    // ── আগের handlers ────────────────────────────────────────────────────────
+    socket.on('connect',    () => console.log('⚡ [Socket] Connected:', socket.id));
+    socket.on('disconnect', (reason) => {
       console.log('❌ [Socket] Disconnected:', reason);
       if (reason === 'io server disconnect') socket.connect();
-    };
-    const handleConnectError = (err) => console.error('⚠️ [Socket] Error:', err.message);
+    });
+    socket.on('connect_error', (err) => console.error('⚠️ [Socket] Error:', err.message));
 
-    socket.on('connect',            handleConnect);
-    socket.on('onlineUsers',        handleOnlineUsers);
-    socket.on('userOnline',         handleUserOnline);
-    socket.on('userOffline',        handleUserOffline);
-    socket.on('newMessage',         handleNewMessage);
-    socket.on('messageEdited',      handleMessageEdited);
-    socket.on('messageDeleted',     handleMessageDeleted);
-    socket.on('postLiked',          handlePostLiked);
-    socket.on('disconnect',         handleDisconnect);
-    socket.on('connect_error',      handleConnectError);
+    socket.on('onlineUsers',    (userIds)    => dispatch(setOnlineUsers(userIds)));
+    socket.on('userOnline',     ({ userId }) => dispatch(addOnlineUser(userId)));
+    socket.on('userOffline',    ({ userId }) => dispatch(removeOnlineUser(userId)));
+    socket.on('newMessage',     (message)    => { dispatch(receiveMessage(message)); dispatch(fetchUnreadCount()); });
+    socket.on('messageEdited',  (data)       => dispatch(editMessageRealtime(data)));
+    socket.on('messageDeleted', (data)       => dispatch(deleteMessageRealtime(data)));
+
+    // ── Post handlers ─────────────────────────────────────────────────────────
+    socket.on('newPost', (post) => {
+      // নিজের post createPost.fulfilled-এ আগেই add হয়েছে
+      if (post.author?._id?.toString() === currentUserRef.current?._id?.toString()) return;
+      dispatch(socketNewPost(post));
+    });
+
+    socket.on('postDeleted', (data) => dispatch(socketPostDeleted(data)));
+
+    // ── Reaction handlers ─────────────────────────────────────────────────────
+    socket.on('reactionUpdate', (data) => {
+      // নিজের reaction optimistic update-এ already হয়েছে
+      if (data.userId?.toString() === currentUserRef.current?._id?.toString()) return;
+      dispatch(socketReactionUpdate(data));
+    });
+
+    // ── Comment handlers ──────────────────────────────────────────────────────
+    socket.on('newComment', (data) => {
+      // নিজের comment addComment.fulfilled-এ already হয়েছে
+      if (data.comment?.user?._id?.toString() === currentUserRef.current?._id?.toString()) return;
+      dispatch(socketNewComment(data));
+    });
+
+    socket.on('commentDeleted', (data) => dispatch(socketCommentDeleted(data)));
+
+    // ── Reply handlers ────────────────────────────────────────────────────────
+    socket.on('newReply', (data) => {
+      // নিজের reply addReply.fulfilled-এ already হয়েছে
+      if (data.reply?.user?._id?.toString() === currentUserRef.current?._id?.toString()) return;
+      dispatch(socketNewReply(data));
+    });
+
+    socket.on('replyDeleted',    (data)         => dispatch(socketReplyDeleted(data)));
+    socket.on('newNotification', (notification) => dispatch(socketNewNotification(notification)));
 
     return () => {
-      socket.off('connect',            handleConnect);
-      socket.off('onlineUsers',        handleOnlineUsers);
-      socket.off('userOnline',         handleUserOnline);
-      socket.off('userOffline',        handleUserOffline);
-      socket.off('newMessage',         handleNewMessage);
-      socket.off('messageEdited',      handleMessageEdited);
-      socket.off('messageDeleted',     handleMessageDeleted);
-      socket.off('postLiked',          handlePostLiked);
-      socket.off('disconnect',         handleDisconnect);
-      socket.off('connect_error',      handleConnectError);
+      socket.removeAllListeners();
     };
+
+  // currentUser?._id dependency array থেকে বাদ — ref দিয়ে handle হচ্ছে
+  // এটাই আগের duplicate listener-এর কারণ ছিল
   }, [isLoggedIn, token, dispatch]);
 
+  // ── Emit helpers (অপরিবর্তিত) ────────────────────────────────────────────
   const emitTyping = useCallback((receiverId) => {
     if (socketRef.current?.connected && receiverId)
       socketRef.current.emit('typing', { receiverId });
@@ -116,12 +142,7 @@ export function useSocket() {
       socketRef.current.emit('messageRead', { messageId, senderId });
   }, []);
 
-  return {
-    socket: socketRef.current,
-    emitTyping,
-    emitStopTyping,
-    emitMessageRead,
-  };
+  return { socket: socketRef.current, emitTyping, emitStopTyping, emitMessageRead };
 }
 
 if (typeof window !== 'undefined') {
