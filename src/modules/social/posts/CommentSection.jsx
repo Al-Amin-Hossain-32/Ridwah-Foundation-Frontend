@@ -19,6 +19,7 @@ import {
 import moment from "moment";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
+import { EmojiPicker } from "@/pages/social/EmojiPicker"; //
 
 // ─── Reply Item ───────────────────────────────────────────────────────────────
 
@@ -317,7 +318,10 @@ export default function CommentSection({ post, currentUser, visible }) {
             disabled={!commentText.trim() || submitting}
             className="text-primary p-1 disabled:opacity-30 transition-opacity"
           >
+           <div>
+             <EmojiPicker />
             <Send size={18} />
+           </div>
           </button>
         </div>
       </form>

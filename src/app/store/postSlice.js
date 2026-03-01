@@ -1,11 +1,11 @@
-import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import postService from '@/services/post.service';
-import reactionService from '@/services/reaction.service';
+import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
+import postService from "@/services/post.service";
+import reactionService from "@/services/reaction.service";
 
 // ─── Thunks ───────────────────────────────────────────────────────────────────
 
 export const fetchGlobalFeed = createAsyncThunk(
-  'posts/fetchGlobalFeed',
+  "posts/fetchGlobalFeed",
   async ({ page = 1 }, { rejectWithValue }) => {
     try {
       const res = await postService.feed(page);
@@ -17,11 +17,11 @@ export const fetchGlobalFeed = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
-  }
+  },
 );
 
 export const fetchTimeline = createAsyncThunk(
-  'posts/fetchTimeline',
+  "posts/fetchTimeline",
   async (_, { rejectWithValue }) => {
     try {
       const res = await postService.timeline();
@@ -29,11 +29,11 @@ export const fetchTimeline = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.response?.data?.message || err.message);
     }
-  }
+  },
 );
 
 export const createPost = createAsyncThunk(
-  'posts/create',
+  "posts/create",
   async (data, { rejectWithValue }) => {
     try {
       const res = await postService.create(data);
@@ -41,11 +41,11 @@ export const createPost = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.message);
     }
-  }
+  },
 );
 
 export const deletePost = createAsyncThunk(
-  'posts/delete',
+  "posts/delete",
   async (id, { rejectWithValue }) => {
     try {
       await postService.remove(id);
@@ -53,23 +53,30 @@ export const deletePost = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.message);
     }
-  }
+  },
 );
 
 export const toggleReaction = createAsyncThunk(
-  'posts/toggleReaction',
-  async ({ targetType, targetId, reactionType, postId }, { rejectWithValue }) => {
+  "posts/toggleReaction",
+  async (
+    { targetType, targetId, reactionType, postId },
+    { rejectWithValue },
+  ) => {
     try {
-      const res = await reactionService.toggle(targetType, targetId, reactionType);
+      const res = await reactionService.toggle(
+        targetType,
+        targetId,
+        reactionType,
+      );
       return { targetType, targetId, postId, data: res.data.data };
     } catch (err) {
       return rejectWithValue(err.message);
     }
-  }
+  },
 );
 
 export const addComment = createAsyncThunk(
-  'posts/addComment',
+  "posts/addComment",
   async ({ postId, text }, { rejectWithValue }) => {
     try {
       const res = await postService.comment(postId, { text });
@@ -77,11 +84,11 @@ export const addComment = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.message);
     }
-  }
+  },
 );
 
 export const deleteComment = createAsyncThunk(
-  'posts/deleteComment',
+  "posts/deleteComment",
   async ({ postId, commentId }, { rejectWithValue }) => {
     try {
       await postService.deleteComment(postId, commentId);
@@ -89,11 +96,11 @@ export const deleteComment = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.message);
     }
-  }
+  },
 );
 
 export const addReply = createAsyncThunk(
-  'posts/addReply',
+  "posts/addReply",
   async ({ postId, commentId, text }, { rejectWithValue }) => {
     try {
       const res = await postService.addReply(postId, commentId, { text });
@@ -101,11 +108,11 @@ export const addReply = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.message);
     }
-  }
+  },
 );
 
 export const deleteReply = createAsyncThunk(
-  'posts/deleteReply',
+  "posts/deleteReply",
   async ({ postId, commentId, replyId }, { rejectWithValue }) => {
     try {
       await postService.deleteReply(postId, commentId, replyId);
@@ -113,15 +120,15 @@ export const deleteReply = createAsyncThunk(
     } catch (err) {
       return rejectWithValue(err.message);
     }
-  }
+  },
 );
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function applyOptimisticReaction(target, reactionType) {
-  const counts    = { ...(target.reactionCounts || {}) };
+  const counts = { ...(target.reactionCounts || {}) };
   let userReaction = target.userReaction || null;
-  let total        = target.totalReactions || 0;
+  let total = target.totalReactions || 0;
 
   if (userReaction === reactionType) {
     counts[reactionType] = Math.max(0, (counts[reactionType] || 1) - 1);
@@ -153,7 +160,7 @@ function updatePost(posts, postId, updater) {
 // ─── Slice ────────────────────────────────────────────────────────────────────
 
 const postSlice = createSlice({
-  name: 'posts',
+  name: "posts",
   initialState: {
     /**
      * একটাই `posts` array — NewsFeed আর TimelinePage দুটোই এটা পড়বে।
@@ -186,7 +193,7 @@ const postSlice = createSlice({
   reducers: {
     // Feed pagination reset — page 1 থেকে আবার load করতে
     resetFeedPagination: (state) => {
-      state.feedPage    = 1;
+      state.feedPage = 1;
       state.feedHasMore = true;
       // posts array reset করা হচ্ছে না!
       // শুধু নতুন fetch-এর পর merge হবে
@@ -210,12 +217,12 @@ const postSlice = createSlice({
     socketReactionUpdate: (state, action) => {
       const { targetType, targetId, counts } = action.payload;
 
-      if (targetType === 'post') {
+      if (targetType === "post") {
         updatePost(state.posts, targetId, (post) => {
           post.reactionCounts = counts.counts;
           post.totalReactions = counts.total;
         });
-      } else if (targetType === 'comment') {
+      } else if (targetType === "comment") {
         for (const post of state.posts) {
           const comment = post.comments?.find((c) => c._id === targetId);
           if (comment) {
@@ -224,7 +231,7 @@ const postSlice = createSlice({
             break;
           }
         }
-      } else if (targetType === 'reply') {
+      } else if (targetType === "reply") {
         outer: for (const post of state.posts) {
           for (const comment of post.comments || []) {
             const reply = comment.replies?.find((r) => r._id === targetId);
@@ -273,13 +280,20 @@ const postSlice = createSlice({
         }
       });
     },
+    socketPostViewUpdated: (state, action) => {
+      const { postId, viewCount } = action.payload;
+      updatePost(state.posts, postId, (post) => {
+        post.viewCount = viewCount;
+      });
+    },
   },
 
   extraReducers: (builder) => {
-
     // ── GlobalFeed: নতুন post গুলো merge করো, replace নয় ───────────────────
     builder
-      .addCase(fetchGlobalFeed.pending,  (s) => { s.feedLoading = true; })
+      .addCase(fetchGlobalFeed.pending, (s) => {
+        s.feedLoading = true;
+      })
       .addCase(fetchGlobalFeed.fulfilled, (s, a) => {
         s.feedLoading = false;
         const fetched = a.payload.posts || [];
@@ -290,40 +304,46 @@ const postSlice = createSlice({
           // সেগুলো হারিয়ে যাবে — তাই merge করতে হবে
           const existingIds = new Set(fetched.map((p) => p._id));
           // socket থেকে আসা নতুন posts (server fetch-এ নেই)
-          const socketOnlyPosts = s.posts.filter((p) => !existingIds.has(p._id));
+          const socketOnlyPosts = s.posts.filter(
+            (p) => !existingIds.has(p._id),
+          );
           s.posts = [...socketOnlyPosts, ...fetched];
         } else {
           // Pagination: নতুন posts append করো
           const existingIds = new Set(s.posts.map((p) => p._id));
-          const newPosts    = fetched.filter((p) => !existingIds.has(p._id));
+          const newPosts = fetched.filter((p) => !existingIds.has(p._id));
           s.posts = [...s.posts, ...newPosts];
         }
 
         s.feedHasMore = fetched.length > 0;
-        s.feedPage    = a.payload.page;
-        s.error       = null;
+        s.feedPage = a.payload.page;
+        s.error = null;
       })
       .addCase(fetchGlobalFeed.rejected, (s, a) => {
         s.feedLoading = false;
-        s.error       = a.payload;
+        s.error = a.payload;
       });
 
     // ── Timeline: posts merge করো + author id list সংরক্ষণ করো ─────────────
     builder
-      .addCase(fetchTimeline.pending,  (s) => { s.timelineLoading = true; })
+      .addCase(fetchTimeline.pending, (s) => {
+        s.timelineLoading = true;
+      })
       .addCase(fetchTimeline.fulfilled, (s, a) => {
         s.timelineLoading = false;
         const fetched = a.payload.posts || [];
 
         // Author id list: selector এটা দিয়ে filter করবে
         s.timelineAuthorIds = [
-          ...new Set(fetched.map((p) => p.author?._id?.toString()).filter(Boolean)),
+          ...new Set(
+            fetched.map((p) => p.author?._id?.toString()).filter(Boolean),
+          ),
         ];
 
         // Posts merge করো — replace নয়
         // GlobalFeed থেকে আনা posts হারিয়ে যাবে না
         const existingIds = new Set(s.posts.map((p) => p._id));
-        const newPosts    = fetched.filter((p) => !existingIds.has(p._id));
+        const newPosts = fetched.filter((p) => !existingIds.has(p._id));
         if (newPosts.length > 0) {
           s.posts = [...newPosts, ...s.posts];
         }
@@ -332,7 +352,7 @@ const postSlice = createSlice({
       })
       .addCase(fetchTimeline.rejected, (s, a) => {
         s.timelineLoading = false;
-        s.error           = a.payload;
+        s.error = a.payload;
       });
 
     // ── createPost ────────────────────────────────────────────────────────────
@@ -358,20 +378,30 @@ const postSlice = createSlice({
       .addCase(toggleReaction.pending, (state, action) => {
         const { targetType, targetId, reactionType, postId } = action.meta.arg;
 
-        if (targetType === 'post') {
+        if (targetType === "post") {
           updatePost(state.posts, targetId, (post) => {
             Object.assign(post, applyOptimisticReaction(post, reactionType));
           });
-        } else if (targetType === 'comment') {
+        } else if (targetType === "comment") {
           updatePost(state.posts, postId, (post) => {
             const comment = post.comments?.find((c) => c._id === targetId);
-            if (comment) Object.assign(comment, applyOptimisticReaction(comment, reactionType));
+            if (comment)
+              Object.assign(
+                comment,
+                applyOptimisticReaction(comment, reactionType),
+              );
           });
-        } else if (targetType === 'reply') {
+        } else if (targetType === "reply") {
           updatePost(state.posts, postId, (post) => {
             for (const c of post.comments || []) {
               const reply = c.replies?.find((r) => r._id === targetId);
-              if (reply) { Object.assign(reply, applyOptimisticReaction(reply, reactionType)); break; }
+              if (reply) {
+                Object.assign(
+                  reply,
+                  applyOptimisticReaction(reply, reactionType),
+                );
+                break;
+              }
             }
           });
         }
@@ -383,21 +413,24 @@ const postSlice = createSlice({
         const applyServer = (target) => {
           target.reactionCounts = counts.counts;
           target.totalReactions = counts.total;
-          target.userReaction   = act === 'removed' ? null : reactionType;
+          target.userReaction = act === "removed" ? null : reactionType;
         };
 
-        if (targetType === 'post') {
+        if (targetType === "post") {
           updatePost(state.posts, targetId, applyServer);
-        } else if (targetType === 'comment') {
+        } else if (targetType === "comment") {
           updatePost(state.posts, postId, (post) => {
             const comment = post.comments?.find((c) => c._id === targetId);
             if (comment) applyServer(comment);
           });
-        } else if (targetType === 'reply') {
+        } else if (targetType === "reply") {
           updatePost(state.posts, postId, (post) => {
             for (const c of post.comments || []) {
               const reply = c.replies?.find((r) => r._id === targetId);
-              if (reply) { applyServer(reply); break; }
+              if (reply) {
+                applyServer(reply);
+                break;
+              }
             }
           });
         }
@@ -452,30 +485,32 @@ export const {
   socketCommentDeleted,
   socketNewReply,
   socketReplyDeleted,
+  socketPostViewUpdated
 } = postSlice.actions;
 
 // ─── Selectors ────────────────────────────────────────────────────────────────
 
 // NewsFeed: সব posts (createdAt desc order ধরে নেওয়া হচ্ছে)
-export const selectFeed        = (s) => s.posts.posts;
+export const selectFeed = (s) => s.posts.posts;
 export const selectFeedLoading = (s) => s.posts.feedLoading;
 export const selectFeedHasMore = (s) => s.posts.feedHasMore;
-export const selectFeedPage    = (s) => s.posts.feedPage;
+export const selectFeedPage = (s) => s.posts.feedPage;
 
 // TimelinePage: শুধু timeline authors-এর posts
 // এই selector-এ filter হচ্ছে — socket update এলে automatically
 // দুটো page-এই reflect হবে কারণ একই posts array
-export const selectTimelinePosts   = (s) =>
+export const selectTimelinePosts = (s) =>
   s.posts.posts.filter((p) =>
-    s.posts.timelineAuthorIds.includes(p.author?._id?.toString())
+    s.posts.timelineAuthorIds.includes(p.author?._id?.toString()),
   );
 export const selectTimelineLoading = (s) => s.posts.timelineLoading;
 export const selectTimelineAuthorIds = (s) => s.posts.timelineAuthorIds;
 
 // backward compat
-export const selectTimeline    = selectTimelinePosts;
-export const selectPostLoading = (s) => s.posts.feedLoading || s.posts.timelineLoading;
-export const selectHasMore     = (s) => s.posts.feedHasMore;
-export const selectPage        = (s) => s.posts.feedPage;
+export const selectTimeline = selectTimelinePosts;
+export const selectPostLoading = (s) =>
+  s.posts.feedLoading || s.posts.timelineLoading;
+export const selectHasMore = (s) => s.posts.feedHasMore;
+export const selectPage = (s) => s.posts.feedPage;
 
 export default postSlice.reducer;

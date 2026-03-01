@@ -16,6 +16,7 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "dotenv": "^17.3.1",
+    "emoji-picker-react": "^4.18.0",
     "framer-motion": "^12.34.3",
     "lucide-react": "^0.309.0",
     "moment": "^2.30.1",

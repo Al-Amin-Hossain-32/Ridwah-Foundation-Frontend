@@ -8,6 +8,7 @@ const postService = {
   getById:       (id)               => api.get(`/posts/${id}`),
   update:        (id, data)         => api.put(`/posts/${id}`, data),
   remove:        (id)               => api.delete(`/posts/${id}`),
+  view:           (id)              => api.post(`/posts/${id}/view`),
 
   // Comments
   comment:       (id, data)         => api.post(`/posts/${id}/comment`, data),

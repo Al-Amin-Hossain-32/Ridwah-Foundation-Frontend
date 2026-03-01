@@ -19,6 +19,7 @@ import {
   socketCommentDeleted,
   socketNewReply,
   socketReplyDeleted,
+  socketPostViewUpdated,
 } from '@/app/store/postSlice';
 import { socketNewNotification } from '@/app/store/notificationSlice';
 
@@ -116,6 +117,7 @@ export function useSocket() {
     });
 
     socket.on('replyDeleted',    (data)         => dispatch(socketReplyDeleted(data)));
+    socket.on('postViewUpdated', (data)         => dispatch(socketPostViewUpdated(data)));
     socket.on('newNotification', (notification) => dispatch(socketNewNotification(notification)));
 
     return () => {

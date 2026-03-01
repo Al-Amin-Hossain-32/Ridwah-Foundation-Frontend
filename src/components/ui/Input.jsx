@@ -1,3 +1,4 @@
+import React, { forwardRef } from 'react';
 /**
  * Input Component — form input with label + error + icon
  */
@@ -48,13 +49,13 @@ export function Input({
 /**
  * Textarea Component
  */
-export function Textarea({
+export const Textarea = forwardRef(({
   label,
   error,
   rows = 4,
   className = '',
   ...props
-}) {
+}, ref) => {
   return (
     <div className="flex flex-col gap-xs">
       {label && (
@@ -63,6 +64,7 @@ export function Textarea({
         </label>
       )}
       <textarea
+        ref={ref} // আসল textarea-তে ref কানেক্ট করা হয়েছে
         rows={rows}
         className={`
           form-input resize-none
@@ -76,7 +78,7 @@ export function Textarea({
       )}
     </div>
   )
-}
+});
 
 /**
  * Select Component

@@ -7,7 +7,7 @@ import { selectAuth } from "@/app/store/authSlice";
 
 const STORAGE_KEY  = "fcb_pos_v2";
 const BTN          = 56;
-const DISMISS_ZONE = 100; // যেকোনো edge থেকে শেষ 100px
+const DISMISS_ZONE = 50; // যেকোনো edge থেকে শেষ 100px
 const M            = { t: 64, b: 84, l: 8, r: 8 };
 
 const vw = () => window.visualViewport?.width  ?? window.innerWidth;

@@ -1,4 +1,4 @@
-import { useState, memo } from "react";
+import { useState, memo, useRef } from "react";
 import { useAppDispatch, useAppSelector } from "@/hooks/useRedux";
 import { deletePost } from "@/app/store/postSlice";
 import { selectUser } from "@/app/store/authSlice";
@@ -11,11 +11,12 @@ import {
   MoreHorizontal,
   Trash2,
   Edit2,
+  Eye,
 } from "lucide-react";
 import moment from "moment";
 import toast from "react-hot-toast";
 import { Link } from "react-router-dom";
-
+import { usePostView } from "@/hooks/usePostView";
 /**
  * PostCard (Updated)
  *
@@ -33,6 +34,8 @@ const PostCard = memo(({ post }) => {
   const [showMenu, setShowMenu] = useState(false);
 
   const isOwner = post.author?._id === currentUser?._id;
+  const containerRef = useRef(null);
+  usePostView(post._id, containerRef);
 
   const handleDelete = async () => {
     if (!window.confirm("এই পোস্টটি মুছে ফেলবেন?")) return;
@@ -56,7 +59,10 @@ const PostCard = memo(({ post }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-visible mb-5 transition-shadow hover:shadow-md">
+    <div
+      ref={containerRef}
+      className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-visible mb-5 transition-shadow hover:shadow-md"
+    >
       {/* ── Header ── */}
       <div className="p-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -176,7 +182,9 @@ const PostCard = memo(({ post }) => {
       )}
 
       {/* ── Stats Bar ── */}
-      {(post.totalReactions > 0 || post.comments?.length > 0) && (
+      {(post.totalReactions > 0 ||
+        post.comments?.length > 0 ||
+        post.viewCount > 0) && (
         <div className="px-4 pt-2.5 pb-1 flex items-center justify-between">
           <div className="flex items-center gap-1">
             <ReactionSummary
@@ -184,16 +192,24 @@ const PostCard = memo(({ post }) => {
               total={post.totalReactions}
               targetType="post"
               targetId={post._id}
+              topReactors={post.topReactors || []}
             />
           </div>
-          {post.comments?.length > 0 && (
-            <button
-              onClick={() => setShowComments((v) => !v)}
-              className="text-xs text-gray-500 hover:underline"
-            >
-              {post.comments.length}টি কমেন্ট
-            </button>
-          )}
+          <div className="flex items-center gap-3">
+            {post.viewCount > 0 && (
+              <span className="flex items-center gap-1 text-xs text-gray-400">
+                <Eye size={13} /> {post.viewCount}
+              </span>
+            )}
+            {post.comments?.length > 0 && (
+              <button
+                onClick={() => setShowComments((v) => !v)}
+                className="text-xs text-gray-500 hover:underline"
+              >
+                {post.comments.length}টি কমেন্ট
+              </button>
+            )}
+          </div>
         </div>
       )}
 
