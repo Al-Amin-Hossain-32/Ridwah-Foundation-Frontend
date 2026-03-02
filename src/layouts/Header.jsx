@@ -135,7 +135,7 @@ export function Header() {
                   <span className="text-primary font-black text-[16px]">RF</span>
                 </div>
                 <div className="hidden sm:block">
-                  <h1 className="font-heading font-bold text-[18px] text-white">Ridwah Foundation</h1>
+                  <h1 className="font-heading font-bold text-[18px] text-white">Ridwah Foundation <span>beta</span> </h1>
                 </div>
               </Link>
             </motion.div>
