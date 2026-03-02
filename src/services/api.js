@@ -7,7 +7,7 @@ import axios from 'axios'
 const API_BASE =
   import.meta.env.DEV
     ? '/api'
-    : 'https://ridwah-foundation-backend.onrender.com'
+    : 'https://ridwah-foundation-backend.onrender.com/api'
 
 const api = axios.create({
   baseURL: API_BASE,
