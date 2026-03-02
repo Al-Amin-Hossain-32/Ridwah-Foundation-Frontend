@@ -4,8 +4,13 @@ import axios from 'axios'
  * Axios Instance — সব API call এখান দিয়ে যাবে
  * Base URL: /api (vite proxy → localhost:5000)
  */
+const API_BASE =
+  import.meta.env.DEV
+    ? '/api'
+    : 'https://ridwah-foundation-backend.onrender.com'
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
   headers: {
     'Content-Type': 'application/json',
   },
