@@ -23,20 +23,42 @@ import {
 } from '@/app/store/postSlice';
 import { socketNewNotification } from '@/app/store/notificationSlice';
 
+// ── Donation + Campaign realtime actions ──────────────────────────────────────
+import {
+  socketNewDonation,
+  socketDonationUpdated,
+  fetchPendingCount,
+} from '@/app/store/donationSlice';
+import {
+  socketCampaignProgressUpdated,
+  socketCampaignCreated,
+  socketCampaignUpdated,
+  socketCampaignDeleted,
+} from '@/app/store/campaignSlice';
+
 let socketInstance = null;
 
 export function useSocket() {
-  const dispatch = useAppDispatch();
+  const dispatch   = useAppDispatch();
   const { token, isLoggedIn } = useAppSelector(selectAuth);
   const currentUser = useAppSelector(selectUser);
-  const socketRef = useRef(null);
+  const socketRef   = useRef(null);
 
-  // currentUser কে ref-এ রাখি — dependency array-এ না রেখেও
-  // handler-এর ভেতরে সবসময় latest value পাওয়া যাবে
   const currentUserRef = useRef(currentUser);
+  useEffect(() => { currentUserRef.current = currentUser; }, [currentUser]);
+
+  // role ref — manager/admin হলে pending count load করবো
+  const roleRef = useRef(currentUser?.role);
   useEffect(() => {
-    currentUserRef.current = currentUser;
-  }, [currentUser]);
+    const newRole = currentUser?.role;
+    // role পরিবর্তন হলে pending count refresh করো
+    if (newRole !== roleRef.current) {
+      roleRef.current = newRole;
+      if (['manager', 'admin'].includes(newRole)) {
+        dispatch(fetchPendingCount());
+      }
+    }
+  }, [currentUser?.role, dispatch]);
 
   useEffect(() => {
     if (!isLoggedIn || !token) {
@@ -65,11 +87,9 @@ export function useSocket() {
 
     socketRef.current = socketInstance;
     const socket = socketInstance;
-
-    // প্রতিবার effect চলার আগে সব listener সরাও — duplicate এর কোনো সুযোগ নেই
     socket.removeAllListeners();
 
-    // ── আগের handlers ────────────────────────────────────────────────────────
+    // ── Connection ────────────────────────────────────────────────────────────
     socket.on('connect',    () => console.log('⚡ [Socket] Connected:', socket.id));
     socket.on('disconnect', (reason) => {
       console.log('❌ [Socket] Disconnected:', reason);
@@ -77,58 +97,83 @@ export function useSocket() {
     });
     socket.on('connect_error', (err) => console.error('⚠️ [Socket] Error:', err.message));
 
+    // ── Online presence ───────────────────────────────────────────────────────
     socket.on('onlineUsers',    (userIds)    => dispatch(setOnlineUsers(userIds)));
     socket.on('userOnline',     ({ userId }) => dispatch(addOnlineUser(userId)));
     socket.on('userOffline',    ({ userId }) => dispatch(removeOnlineUser(userId)));
-    socket.on('newMessage',     (message)    => { dispatch(receiveMessage(message)); dispatch(fetchUnreadCount()); });
-    socket.on('messageEdited',  (data)       => dispatch(editMessageRealtime(data)));
-    socket.on('messageDeleted', (data)       => dispatch(deleteMessageRealtime(data)));
 
-    // ── Post handlers ─────────────────────────────────────────────────────────
+    // ── Chat ──────────────────────────────────────────────────────────────────
+    socket.on('newMessage',     (msg)  => { dispatch(receiveMessage(msg)); dispatch(fetchUnreadCount()); });
+    socket.on('messageEdited',  (data) => dispatch(editMessageRealtime(data)));
+    socket.on('messageDeleted', (data) => dispatch(deleteMessageRealtime(data)));
+
+    // ── Posts ─────────────────────────────────────────────────────────────────
     socket.on('newPost', (post) => {
-      // নিজের post createPost.fulfilled-এ আগেই add হয়েছে
       if (post.author?._id?.toString() === currentUserRef.current?._id?.toString()) return;
       dispatch(socketNewPost(post));
     });
-
-    socket.on('postDeleted', (data) => dispatch(socketPostDeleted(data)));
-
-    // ── Reaction handlers ─────────────────────────────────────────────────────
-    socket.on('reactionUpdate', (data) => {
-      // নিজের reaction optimistic update-এ already হয়েছে
+    socket.on('postDeleted',     (data) => dispatch(socketPostDeleted(data)));
+    socket.on('reactionUpdate',  (data) => {
       if (data.userId?.toString() === currentUserRef.current?._id?.toString()) return;
       dispatch(socketReactionUpdate(data));
     });
-
-    // ── Comment handlers ──────────────────────────────────────────────────────
-    socket.on('newComment', (data) => {
-      // নিজের comment addComment.fulfilled-এ already হয়েছে
+    socket.on('newComment',      (data) => {
       if (data.comment?.user?._id?.toString() === currentUserRef.current?._id?.toString()) return;
       dispatch(socketNewComment(data));
     });
-
-    socket.on('commentDeleted', (data) => dispatch(socketCommentDeleted(data)));
-
-    // ── Reply handlers ────────────────────────────────────────────────────────
-    socket.on('newReply', (data) => {
-      // নিজের reply addReply.fulfilled-এ already হয়েছে
+    socket.on('commentDeleted',  (data) => dispatch(socketCommentDeleted(data)));
+    socket.on('newReply',        (data) => {
       if (data.reply?.user?._id?.toString() === currentUserRef.current?._id?.toString()) return;
       dispatch(socketNewReply(data));
     });
+    socket.on('replyDeleted',    (data) => dispatch(socketReplyDeleted(data)));
+    socket.on('postViewUpdated', (data) => dispatch(socketPostViewUpdated(data)));
 
-    socket.on('replyDeleted',    (data)         => dispatch(socketReplyDeleted(data)));
-    socket.on('postViewUpdated', (data)         => dispatch(socketPostViewUpdated(data)));
-    socket.on('newNotification', (notification) => dispatch(socketNewNotification(notification)));
+    // ── Notifications ─────────────────────────────────────────────────────────
+    socket.on('newNotification', (n) => dispatch(socketNewNotification(n)));
 
-    return () => {
-      socket.removeAllListeners();
-    };
+    // ════════════════════════════════════════════════════════════════════════
+    // ── DONATION realtime events ────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════════════
 
-  // currentUser?._id dependency array থেকে বাদ — ref দিয়ে handle হচ্ছে
-  // এটাই আগের duplicate listener-এর কারণ ছিল
+    // নতুন donation submit হলে → manager/admin এর badge বাড়বে
+    socket.on('newDonation', (donation) => {
+      dispatch(socketNewDonation(donation));
+    });
+
+    // Donation approve/reject হলে:
+    //   → manager এর pending count কমবে
+    //   → donor এর myList-এ status update হবে
+    socket.on('donationStatusUpdated', (donation) => {
+      dispatch(socketDonationUpdated(donation));
+    });
+
+    // ════════════════════════════════════════════════════════════════════════
+    // ── CAMPAIGN realtime events ────────────────────────────────────────────
+    // ════════════════════════════════════════════════════════════════════════
+
+    // Donation approve হলে campaign progress বাড়বে (সবাই দেখবে)
+    socket.on('campaignProgressUpdated', (data) => {
+      // data: { campaignId, currentAmount, status, progressPercentage }
+      dispatch(socketCampaignProgressUpdated(data));
+    });
+
+    // Manager campaign create/update/delete করলে সবার UI update
+    socket.on('campaignCreated', (campaign) => {
+      dispatch(socketCampaignCreated(campaign));
+    });
+    socket.on('campaignUpdated', (campaign) => {
+      dispatch(socketCampaignUpdated(campaign));
+    });
+    socket.on('campaignDeleted', ({ campaignId }) => {
+      dispatch(socketCampaignDeleted(campaignId));
+    });
+
+    return () => { socket.removeAllListeners(); };
+
   }, [isLoggedIn, token, dispatch]);
 
-  // ── Emit helpers (অপরিবর্তিত) ────────────────────────────────────────────
+  // ── Emit helpers ─────────────────────────────────────────────────────────────
   const emitTyping = useCallback((receiverId) => {
     if (socketRef.current?.connected && receiverId)
       socketRef.current.emit('typing', { receiverId });

@@ -40,7 +40,7 @@ const NewsFeed = () => {
   }, [loading, hasMore, page, dispatch]);
 
   return (
-    <div className="max-w-[600px] mx-auto py-md px-sm md:px-0">
+    <div className="max-w-5xl mx-auto py-md px-sm md:px-0">
       <CreatePost />
 
       <div className="flex items-center justify-between mb-md px-xs">

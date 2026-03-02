@@ -47,8 +47,8 @@ export default function NotificationBell() {
   };
 
   const handleNotifClick = (notif) => {
-    if (!notif.read) dispatch(markRead(notif._id));
     setOpen(false);
+    if (!notif.read) dispatch(markRead(notif._id));
   };
 
   const handleMarkAll = () => {
@@ -128,37 +128,41 @@ export default function NotificationBell() {
   );
 }
 
+function getNotifLink(notif) {
+  switch (notif.type) {
+    case 'comment':
+    case 'reply':
+    case 'post_reaction':
+    case 'comment_reaction':
+    case 'reply_reaction':
+     return notif.post ? `/app/post/${notif.post?._id || notif.post}` : null;
+    case 'mention':
+     return notif.post ? `/app/post/${notif.post?._id || notif.post}` : null;
+    default:
+      return null;
+  }
+}
+
 function NotifItem({ notif, onClick }) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left ${
-        !notif.read ? 'bg-blue-50/60' : ''
-      }`}
-    >
+  const to = getNotifLink(notif);
+  const className = `w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left ${!notif.read ? 'bg-blue-50/60' : ''}`;
+
+  const inner = (
+    <>
       <div className="relative flex-shrink-0">
-        <Avatar
-          src={notif.sender?.profilePicture}
-          name={notif.sender?.name}
-          className="w-10 h-10"
-        />
+        <Avatar src={notif.sender?.profilePicture} name={notif.sender?.name} className="w-10 h-10" />
         <span className="absolute -bottom-0.5 -right-0.5 text-sm leading-none">
           {NOTIF_ICON[notif.type] || '🔔'}
         </span>
       </div>
-
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-gray-800 leading-snug">
-          {notif.message}
-        </p>
-        <p className="text-[11px] text-primary font-medium mt-0.5">
-          {moment(notif.createdAt).fromNow()}
-        </p>
+        <p className="text-sm text-gray-800 leading-snug">{notif.message}</p>
+        <p className="text-[11px] text-primary font-medium mt-0.5">{moment(notif.createdAt).fromNow()}</p>
       </div>
-
-      {!notif.read && (
-        <div className="w-2.5 h-2.5 bg-primary rounded-full flex-shrink-0 mt-1.5" />
-      )}
-    </button>
+      {!notif.read && <div className="w-2.5 h-2.5 bg-primary rounded-full flex-shrink-0 mt-1.5" />}
+    </>
   );
+
+  if (to) return <Link to={to} onClick={onClick} className={className}>{inner}</Link>;
+  return <button onClick={onClick} className={className}>{inner}</button>;
 }

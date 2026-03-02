@@ -1,15 +1,29 @@
+import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Header } from './Header'; // নতুন ইমপোর্ট
+import { Header } from './Header';
 import { BottomNav } from './BottomNav';
 import { useSocket } from '@/hooks/useSocket';
+import { useAppDispatch, useAppSelector } from '@/hooks/useRedux';
+import { selectUser } from '@/app/store/authSlice';
+import { fetchPendingCount } from '@/app/store/donationSlice';
 import { cn } from '../utils/mottion';
 import FloatingChatButton from '../pages/chat/FloatingChatButton';
 
 export function AppLayout() {
-  useSocket(); 
+  useSocket();
+
+  const dispatch = useAppDispatch();
+  const user     = useAppSelector(selectUser);
+
+  // manager/admin হলে app load হওয়ার সাথে সাথে pending count আনো
+  useEffect(() => {
+    if (['manager', 'admin'].includes(user?.role)) {
+      dispatch(fetchPendingCount());
+    }
+  }, [user?.role, dispatch]);
 
   return (
-    <div className="min-h-screen mx-auto bg-bg-main">
+    <div className="bg-gradient-to-br from-bg to-primary-50 min-h-screen mx-auto bg-bg-main">
       <Header />
 
       <main className={cn(

@@ -236,6 +236,7 @@ const PostCard = memo(({ post }) => {
               : "text-gray-600 hover:bg-gray-50"
           }`}
         >
+          {post.comments?.length > 0 && ` ${post.comments.length}`}
           <MessageCircle size={20} />
           কমেন্ট
         </button>

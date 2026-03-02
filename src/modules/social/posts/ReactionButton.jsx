@@ -12,6 +12,7 @@ const REACTIONS = [
   { type: "wow", emoji: "😮", label: "বাহ", color: "#f7b125" },
   { type: "sad", emoji: "😢", label: "দুঃখিত", color: "#f7b125" },
   { type: "angry", emoji: "😡", label: "রাগান্বিত", color: "#e9710f" },
+  { type: "dislike", emoji: "👎", label: "ডিসলাইক", color: "#8b8580" },
 ];
 
 const REACTION_CONFIG = Object.fromEntries(REACTIONS.map((r) => [r.type, r]));

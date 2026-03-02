@@ -318,7 +318,7 @@ export default function CommentSection({ post, currentUser, visible }) {
             disabled={!commentText.trim() || submitting}
             className="text-primary p-1 disabled:opacity-30 transition-opacity"
           >
-           <div>
+           <div className="flex items-center gap-1">
              <EmojiPicker />
             <Send size={18} />
            </div>
