@@ -13,7 +13,7 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'https://ridwah-foundation-backend.onrender.com/',
+        target: 'https://ridwah-foundation-backend.onrender.com',
         changeOrigin: true,
       },
     },
